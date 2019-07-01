@@ -8,7 +8,7 @@ class Request:
     def __init__(self, environ, method, body):
         self.environ = environ
         self.method = method
-        self.body = parse_qs(body.decode()) or {}
+        self.body = parse_qs(body) or {}
 
 
 class App:
@@ -25,7 +25,8 @@ class App:
                 request_body_size = int(environ.get('CONTENT_LENGTH', 0))
             except ValueError:
                 request_body_size = 0
-            request_body = environ['wsgi.input'].read(request_body_size)
+            request_body = environ['wsgi.input'].read(request_body_size).decode()
+
         resource = self.resource_map.get(path, None)
         content_type = 'text/plain'
         if not resource:
@@ -68,6 +69,15 @@ class Server:
 
 
 class resource:
+    def __new__(cls, *args, **kwargs):
+        for method in ['GET', 'POST']:
+            def _(m):
+                def __(self, handler):
+                    return self._to(handler, m)
+                return __
+            setattr(cls, method.lower(), _(method))
+        return super().__new__(cls)
+
     def __init__(self, path):
         self.path = path
 
@@ -75,12 +85,6 @@ class resource:
         self.handler = handler
         self.method = method
         return self
-
-    def get(self, handler):
-        return self._to(handler, 'GET')
-
-    def post(self, handler):
-        return self._to(handler, 'POST')
 
 
 if __name__ == '__main__':
