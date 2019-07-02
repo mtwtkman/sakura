@@ -1,7 +1,15 @@
-from abc import ABC, abstractmethod
+import enum
+from functools import wraps
 import json
 from wsgiref.simple_server import make_server
 from urllib.parse import parse_qs
+
+
+class HttpMethod(enum.Enum):
+    GET = "get"
+    POST = "post"
+    PUT = "put"
+    DELETE = "delete"
 
 
 class Request:
@@ -16,40 +24,40 @@ class App:
         self.resource_map = {}
 
     def __call__(self, environ, start_response):
-        path = environ['PATH_INFO']
-        method = environ['REQUEST_METHOD']
-        if method == 'GET':
-            request_body = environ['QUERY_STRING']
-        elif method == 'POST':
+        path: str = environ["PATH_INFO"]
+        method = getattr(HttpMethod, environ["REQUEST_METHOD"])
+        if method == HttpMethod.GET:
+            request_body = environ["QUERY_STRING"]
+        elif method == HttpMethod.POST:
             try:
-                request_body_size = int(environ.get('CONTENT_LENGTH', 0))
+                request_body_size = int(environ.get("CONTENT_LENGTH", 0))
             except ValueError:
                 request_body_size = 0
-            request_body = environ['wsgi.input'].read(request_body_size).decode()
+            request_body = environ["wsgi.input"].read(request_body_size).decode()
 
         resource = self.resource_map.get(path, None)
-        content_type = 'text/plain'
+        content_type = "text/plain"
         if not resource:
-            status = '404 NotFound'
+            status = "404 NotFound"
             response = status
         elif resource.method != method:
-            status = '405 Method Not Allowed'
+            status = "405 Method Not Allowed"
             response = status
         else:
             response = resource.handler(Request(environ, method, request_body))
             if isinstance(response, dict):
                 response = json.dumps(response)
-                content_type = 'application/json'
-            status = '200 OK'
+                content_type = "application/json"
+            status = "200 OK"
         response_headers = [
-            ('Content-Type', content_type),
-            ('Content-Length', str(len(response))),
+            ("Content-Type", content_type),
+            ("Content-Length", str(len(response))),
         ]
         start_response(status, response_headers)
         return [response.encode()]
 
-    def service(self, service):
-        self.resource_map[service.path] = service
+    def service(self, resource):
+        self.resource_map[resource.path] = resource
         return self
 
 
@@ -64,42 +72,47 @@ class Server:
 
     def run(self):
         with make_server(self.host, self.port, self.app) as httpd:
-            print(f'Start server {self.host}:{self.port}')
+            print(f"Start server {self.host}:{self.port}")
             httpd.serve_forever()
 
 
 class resource:
     def __new__(cls, *args, **kwargs):
-        for method in ['GET', 'POST']:
-            def _(m):
+        for method in list(HttpMethod):
+
+            def _(m: HttpMethod):
                 def __(self, handler):
                     return self._to(handler, m)
+
                 return __
-            setattr(cls, method.lower(), _(method))
+
+            setattr(cls, method.value, _(method))
         return super().__new__(cls)
 
-    def __init__(self, path):
+    def __init__(self, path: str):
         self.path = path
 
-    def _to(self, handler, method):
+    def _to(self, handler, method: HttpMethod) -> resource:
         self.handler = handler
         self.method = method
         return self
 
 
-if __name__ == '__main__':
-    def handle_get(request):
-        data = ','.join(f'{k.upper()}: {v}' for k, v in request.body.items())
-        return data or 'no params'
+def method_wrapper(method: HttpMethod):
+    def _inner(path: str):
+        def __inner(handler):
+            @wraps(handler)
+            def ___inner(request: Request):
+                return handler(request)
 
-    def j(request):
-        return request.body or {'sakura': 'kinomoto', 'tomoyo': 'daidouji'}
+            return getattr(resource(path), method.value)(___inner)
 
-    def handle_post(request):
-        return dict(result=True, **request.body)
+        return __inner
 
-    app = App() \
-        .service(resource('/').get(handle_get)) \
-        .service(resource('/json').get(j)) \
-        .service(resource('/post').post(handle_post))
-    Server(app=app).bind('0.0.0.0', 8000).run()
+    return _inner
+
+
+get = method_wrapper(HttpMethod.GET)
+post = method_wrapper(HttpMethod.POST)
+put = method_wrapper(HttpMethod.PUT)
+delete = method_wrapper(HttpMethod.DELETE)

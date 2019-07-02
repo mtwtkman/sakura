@@ -42,16 +42,16 @@ class TestApp(TestCase):
 
     def test_get_without_params(self):
         result = self.call_app(self.build_environ('/get', 'get'))
-        assert result == [b'GET: no param']
+        self.assertEqual(result, [b'GET: no param'])
 
     def test_get_with_params(self):
         result = self.call_app(self.build_environ('/get', 'get', 'x=1&y=2'))
-        assert result == [b'GET: {"x": ["1"], "y": ["2"]}']
+        self.assertEqual(result, [b'GET: {"x": ["1"], "y": ["2"]}'])
 
     def test_post_without_payload(self):
         result = self.call_app(self.build_environ('/post', 'post'))
-        assert result == [b'POST: no param']
+        self.assertEqual(result, [b'POST: no param'])
 
     def test_post_with_payload(self):
         result = self.call_app(self.build_environ('/post', 'post', payload='x=1&y=2'))
-        assert result == [b'POST: {"x": ["1"], "y": ["2"]}']
+        self.assertEqual(result, [b'POST: {"x": ["1"], "y": ["2"]}'])
