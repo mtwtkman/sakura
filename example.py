@@ -19,13 +19,16 @@ def decorated(request):
     return 'decorated'
 
 
+def handle_scoped_x(request):
+    return 'scoped'
+
+
 app = App() \
     .service(resource('/').get(handle_get)) \
     .service(resource('/json').get(j)) \
     .service(resource('/post').post(handle_post)) \
     .service(decorated) \
     .service(
-        scope('/scoped') \
-            .service(resource('/x').get(handle_scoped_x))
+        scope('/scoped').service(resource('/x').get(handle_scoped_x))
     )
 Server(app=app).bind('0.0.0.0', 8000).run()
