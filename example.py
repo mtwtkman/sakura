@@ -1,4 +1,4 @@
-from sakura import App, Server, resource, get
+from sakura import App, Server, resource, get, scope
 
 
 def handle_get(request):
@@ -23,5 +23,9 @@ app = App() \
     .service(resource('/').get(handle_get)) \
     .service(resource('/json').get(j)) \
     .service(resource('/post').post(handle_post)) \
-    .service(decorated)
+    .service(decorated) \
+    .service(
+        scope('/scoped') \
+            .service(resource('/x').get(handle_scoped_x))
+    )
 Server(app=app).bind('0.0.0.0', 8000).run()

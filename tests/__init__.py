@@ -1,2 +1,3 @@
 from .test_app import *
-from .resource import *
+from .test_resource import *
+from .test_scope import *

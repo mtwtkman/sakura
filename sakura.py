@@ -1,3 +1,4 @@
+import re
 import enum
 from functools import wraps
 import json
@@ -19,9 +20,36 @@ class Request:
         self.body = parse_qs(body) or {}
 
 
-class App:
+class Service:
     def __init__(self):
         self.resource_map = {}
+
+    def service(self, resource):
+        self.resource_map[resource.path] = resource
+        return self
+
+
+path_pattern = re.compile(r'(/[^/]+)')
+
+
+class App(Service):
+    def __init__(self):
+        super().__init__()
+
+    def resolve_path(self, raw):
+        def loop(resource_map, head, tail, acc):
+            x = resource_map.get(head)
+            if not x:
+                return
+            if not tail:
+                return x
+            [h, *t] = tail
+            if isinstance(x, scope):
+                return loop(x.resource_map, h, t, None)
+            return loop(resource_map, h, t, x)
+
+        [head, *tail] = [x for x in path_pattern.split(raw) if x]
+        return loop(self.resource_map, head, tail, None)
 
     def __call__(self, environ, start_response):
         path: str = environ["PATH_INFO"]
@@ -35,13 +63,13 @@ class App:
                 request_body_size = 0
             request_body = environ["wsgi.input"].read(request_body_size).decode()
 
-        resource = self.resource_map.get(path, None)
+        resource = self.resolve_path(path)
         content_type = "text/plain"
         if not resource:
             status = "404 NotFound"
             response = status
         elif resource.method != method:
-            status = "405 Method Not Allowed"
+            status = "405 MethodNotAllowed"
             response = status
         else:
             response = resource.handler(Request(environ, method, request_body))
@@ -55,10 +83,6 @@ class App:
         ]
         start_response(status, response_headers)
         return [response.encode()]
-
-    def service(self, resource):
-        self.resource_map[resource.path] = resource
-        return self
 
 
 class Server:
@@ -92,10 +116,16 @@ class resource:
     def __init__(self, path: str):
         self.path = path
 
-    def _to(self, handler, method: HttpMethod) -> resource:
+    def _to(self, handler, method: HttpMethod) -> "resource":
         self.handler = handler
         self.method = method
         return self
+
+
+class scope(Service):
+    def __init__(self, path):
+        super().__init__()
+        self.path = path
 
 
 def method_wrapper(method: HttpMethod):
