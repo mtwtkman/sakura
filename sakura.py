@@ -1,3 +1,4 @@
+from http import HTTPStatus
 import re
 import enum
 from functools import wraps
@@ -6,7 +7,26 @@ from wsgiref.simple_server import make_server
 from urllib.parse import parse_qs
 
 
+def memoise(method):
+    memo_name = f'_{method.__name__}'
+    @wraps(method)
+    def _inner(self, *args, **kwargs):
+        if not hasattr(self, memo_name):
+            setattr(self, memo_name, method(self, *args, **kwargs))
+        return getattr(self, memo_name)
+    return _inner
+
+
+def http_status_code_message(status):
+    formatted = " ".join((s.capitalize() for s in status.name.split("_")))
+    return f"{status.value} {formatted}"
+
+
 class ReservedPathError(Exception):
+    pass
+
+
+class InvalidHttpMethod(Exception):
     pass
 
 
@@ -24,6 +44,24 @@ class Request:
         self.body = parse_qs(body) or {}
 
 
+class HttpHeader(dict):
+    def __init__(self, **kwargs):
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+
+    def as_key_value_pairs(self):
+        return [
+            ('-'.join(s.capitalize() for s in k.split('_')), v) for k, v in self.items()
+        ]
+
+
+class Response:
+    def __init__(self, headers, status, body):
+        self.headers = headers
+        self.status = status
+        self.body = body
+
+
 class Service:
     def __init__(self):
         self.resource_map = {}
@@ -38,17 +76,19 @@ class Service:
 class App(Service):
     @property
     def resource_path_map(self):
-        if not hasattr(self, '_resource_path_map'):
+        if not hasattr(self, "_resource_path_map"):
+
             def loop(path, value, tail, acc):
                 if isinstance(value, scope):
                     [(p, v), *t] = value.resource_map.items()
-                    loop(f'{path}{p}', v, t, acc)
+                    loop(f"{path}{p}", v, t, acc)
                 else:
                     acc[path] = value
                 if not tail:
                     return acc
                 [(p, v), *t] = tail
                 return loop(p, v, t, acc)
+
             [(path, value), *tail] = self.resource_map.items()
             self._resource_path_map = loop(path, value, tail, {})
         return self._resource_path_map
@@ -57,36 +97,75 @@ class App(Service):
     def resource_paths(self):
         return self.resource_path_map.keys()
 
+    def _from_query_string(self, environ):
+        return environ["QUERY_STRING"]
+
+    def _from_stream(self, environ):
+        try:
+            request_body_size = int(environ.get("CONTENT_LENGTH", 0))
+        except ValueError:
+            request_body_size = 0
+        return environ["wsgi.input"].read(request_body_size).decode()
+
+    def _abort(self, e, *args, **kwargs):
+        raise e(*args, **kwargs)
+
+    def _build_request_body(self, method, environ):
+        return {
+            HttpMethod.GET: self._from_query_string,
+            HttpMethod.POST: self._from_stream,
+        }.get(method, lambda _: self._abort(InvalidHttpMethod, method))(environ)
+
+    def _find_matched_path(self, path):
+        filterd = [
+            x for x in [(p, re.match(p, path)) for p in self.resource_paths] if x[1]
+        ]
+        if filterd:
+            return {"name": filterd[0][0], "matched_object": filterd[0][1]}
+        return
+
+    def _build_template_response(self, status):
+        body = http_status_code_message(status)
+        headers = HttpHeader(content_type='text/plain', content_rength=len(body))
+        return Response(headers, status, body)
+
+    @property
+    def not_found_response(self):
+        if not hasattr(self, '_not_found_response'):
+            self._not_found_response = _build_template_response(HTTPStatus.NOT_FOUND)
+        return self._not_found_response
+
+    @property
+    def method_not_allowed_response(self):
+        if not hasattr(self, '_method_not_allowed_response'):
+            self._method_not_allowed_response = _build_template_response(HTTPStatus.NOT_FOUND)
+        return self._method_not_allowed_response
+
     def __call__(self, environ, start_response):
         path: str = environ["PATH_INFO"]
         method = getattr(HttpMethod, environ["REQUEST_METHOD"])
-        if method == HttpMethod.GET:
-            request_body = environ["QUERY_STRING"]
-        elif method == HttpMethod.POST:
-            try:
-                request_body_size = int(environ.get("CONTENT_LENGTH", 0))
-            except ValueError:
-                request_body_size = 0
-            request_body = environ["wsgi.input"].read(request_body_size).decode()
-
-        matched_path = [x for x in [(p, re.match(p, path)) for p in self.resource_paths] if x[1]]
+        request_body = self._build_request_body(method, environ)
+        matched_path = self._find_matched_path(path)
         content_type = "text/plain"
 
         # FIXME
         if not matched_path:
-            status = "404 NotFound"
-            response = status
+            status = HTTPStatus.NOT_FOUND
+            response = http_status_code_message(status)
         else:
-            resource = self.resource_path_map[matched_path[0][0]]
-            if resource.method != method:
-                status = "405 MethodNotAllowed"
-                response = status
+            resource = self.resource_path_map[matched_path["name"]]
+            if not resource.is_allowed_method(method):
+                status = HTTPStatus.METHOD_NOT_ALLOWED
+                response = http_status_code_message(status)
             else:
-                response = resource.handler(Request(environ, method, request_body), **matched_path[0][1].groupdict())
+                response = resource.handler(
+                    Request(environ, method, request_body),
+                    **matched_path["matched_object"].groupdict(),
+                )
                 if isinstance(response, dict):
                     response = json.dumps(response)
                     content_type = "application/json"
-                status = "200 OK"
+                status = HTTPStatus.OK
         response_headers = [
             ("Content-Type", content_type),
             ("Content-Length", str(len(response))),
@@ -130,6 +209,9 @@ class resource:
         self.handler = handler
         self.method = method
         return self
+
+    def is_allowed_method(self, method):
+        return self.method == method
 
 
 class scope(Service):

@@ -58,11 +58,11 @@ class TestRequestHandlerCall(TestCase):
 
     def test_404(self):
         result = self.call_app(self.build_environ('/not_found', 'get'))
-        self.assertEqual(result, [b'404 NotFound'])
+        self.assertEqual(result, [b'404 Not Found'])
 
     def test_405(self):
         result = self.call_app(self.build_environ('/get', 'post'))
-        self.assertEqual(result, [b'405 MethodNotAllowed'])
+        self.assertEqual(result, [b'405 Method Not Allowed'])
 
     def test_get_without_params(self):
         result = self.call_app(self.build_environ('/get', 'get'))
