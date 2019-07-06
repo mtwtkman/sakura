@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from sakura import memoise
+from sakura import memoize
 
 
 class TestMemoise(TestCase):
@@ -13,12 +13,12 @@ class TestMemoise(TestCase):
                 self.a = x
 
             @property
-            @memoise
+            @memoize
             def under_test(self):
                 return self._do_something(10)
 
             @property
-            @memoise
+            @memoize
             def never_changed(self):
                 return self._do_something(100)
 

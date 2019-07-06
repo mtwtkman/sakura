@@ -7,7 +7,7 @@ from wsgiref.simple_server import make_server
 from urllib.parse import parse_qs
 
 
-def memoise(method):
+def memoize(method):
     memo_name = f'_{method.__name__}'
     @wraps(method)
     def _inner(self, *args, **kwargs):
@@ -130,16 +130,14 @@ class App(Service):
         return Response(headers, status, body)
 
     @property
+    @memoize
     def not_found_response(self):
-        if not hasattr(self, '_not_found_response'):
-            self._not_found_response = _build_template_response(HTTPStatus.NOT_FOUND)
-        return self._not_found_response
+        return _build_template_response(HTTPStatus.NOT_FOUND)
 
     @property
+    @memoize
     def method_not_allowed_response(self):
-        if not hasattr(self, '_method_not_allowed_response'):
-            self._method_not_allowed_response = _build_template_response(HTTPStatus.NOT_FOUND)
-        return self._method_not_allowed_response
+        return _build_template_response(HTTPStatus.NOT_FOUND)
 
     def __call__(self, environ, start_response):
         path: str = environ["PATH_INFO"]
