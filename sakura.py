@@ -6,6 +6,10 @@ from wsgiref.simple_server import make_server
 from urllib.parse import parse_qs
 
 
+class ReservedPathError(Exception):
+    pass
+
+
 class HttpMethod(enum.Enum):
     GET = "get"
     POST = "post"
@@ -25,14 +29,13 @@ class Service:
         self.resource_map = {}
 
     def service(self, resource):
+        if resource.path in self.resource_map:
+            raise ReservedPathError(resource.path)
         self.resource_map[resource.path] = resource
         return self
 
 
 class App(Service):
-    def __init__(self):
-        super().__init__()
-
     @property
     def resource_path_map(self):
         if not hasattr(self, '_resource_path_map'):
