@@ -8,12 +8,14 @@ from urllib.parse import parse_qs
 
 
 def memoize(method):
-    memo_name = f'_{method.__name__}'
+    memo_name = f"_{method.__name__}"
+
     @wraps(method)
     def _inner(self, *args, **kwargs):
         if not hasattr(self, memo_name):
             setattr(self, memo_name, method(self, *args, **kwargs))
         return getattr(self, memo_name)
+
     return _inner
 
 
@@ -51,7 +53,7 @@ class HttpHeader(dict):
 
     def as_key_value_pairs(self):
         return [
-            ('-'.join(s.capitalize() for s in k.split('_')), v) for k, v in self.items()
+            ("-".join(s.capitalize() for s in k.split("_")), v) for k, v in self.items()
         ]
 
 
@@ -126,15 +128,15 @@ class App(Service):
 
     def _build_template_response(self, status):
         body = http_status_code_message(status)
-        headers = HttpHeader(content_type='text/plain', content_rength=len(body))
+        headers = HttpHeader(content_type="text/plain", content_rength=len(body))
         return Response(headers, status, body)
 
-    @property
+    @property  # type: ignore
     @memoize
     def not_found_response(self):
         return _build_template_response(HTTPStatus.NOT_FOUND)
 
-    @property
+    @property  # type: ignore
     @memoize
     def method_not_allowed_response(self):
         return _build_template_response(HTTPStatus.NOT_FOUND)
