@@ -53,6 +53,10 @@ class App(Service):
             self._resource_path_map = loop(path, value, tail, {})
         return self._resource_path_map
 
+    @property
+    def resource_paths(self):
+        return self.resource_path_map.keys()
+
     def __call__(self, environ, start_response):
         path: str = environ["PATH_INFO"]
         method = getattr(HttpMethod, environ["REQUEST_METHOD"])
@@ -65,20 +69,24 @@ class App(Service):
                 request_body_size = 0
             request_body = environ["wsgi.input"].read(request_body_size).decode()
 
-        resource = self.resource_path_map.get(path)
+        matched_path = [x for x in [(p, re.match(p, path)) for p in self.resource_paths] if x[1]]
         content_type = "text/plain"
-        if not resource:
+
+        # FIXME
+        if not matched_path:
             status = "404 NotFound"
             response = status
-        elif resource.method != method:
-            status = "405 MethodNotAllowed"
-            response = status
         else:
-            response = resource.handler(Request(environ, method, request_body))
-            if isinstance(response, dict):
-                response = json.dumps(response)
-                content_type = "application/json"
-            status = "200 OK"
+            resource = self.resource_path_map[matched_path[0][0]]
+            if resource.method != method:
+                status = "405 MethodNotAllowed"
+                response = status
+            else:
+                response = resource.handler(Request(environ, method, request_body), **matched_path[0][1].groupdict())
+                if isinstance(response, dict):
+                    response = json.dumps(response)
+                    content_type = "application/json"
+                status = "200 OK"
         response_headers = [
             ("Content-Type", content_type),
             ("Content-Length", str(len(response))),
@@ -134,8 +142,8 @@ def method_wrapper(method: HttpMethod):
     def _inner(path: str):
         def __inner(handler):
             @wraps(handler)
-            def ___inner(request: Request):
-                return handler(request)
+            def ___inner(request: Request, *args, **kwargs):
+                return handler(request, *args, **kwargs)
 
             return getattr(resource(path), method.value)(___inner)
 

@@ -29,13 +29,17 @@ class TestRequestHandlerCall(TestCase):
         def scoped_handler(request):
             return 'GET: scoped'
 
+        def regex_handler(request, id_):
+            return f'GET: {id_}'
+
         scoped = scope('/nest1').service(resource('/scoped').get(scoped_handler))
 
         self.dummy_app = App() \
             .service(resource('/get').get(get_handler)) \
             .service(resource('/post').post(post_handler)) \
             .service(decorated_handler) \
-            .service(scoped)
+            .service(scoped) \
+            .service(resource(r'/(?P<id_>\d+)').get(regex_handler))
 
     def call_app(self, environ):
         return self.dummy_app(environ, start_response_mock)
@@ -83,6 +87,10 @@ class TestRequestHandlerCall(TestCase):
     def test_scoped(self):
         result = self.call_app(self.build_environ('/nest1/scoped', 'get'))
         self.assertEqual(result, [b'GET: scoped'])
+
+    def test_regex(self):
+        result = self.call_app(self.build_environ('/111', 'get'))
+        self.assertEqual(result, [b'GET: 111'])
 
 
 class TestResourcePathMap(TestCase):
