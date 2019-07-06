@@ -1,3 +1,4 @@
+import sys
 from http import HTTPStatus
 import re
 import enum
@@ -5,6 +6,14 @@ from functools import wraps
 import json
 from wsgiref.simple_server import make_server
 from urllib.parse import parse_qs
+
+
+class PythonVersionError(Exception):
+    pass
+
+
+if sys.version_info[:2] < (3, 7):
+    raise PythonVersionError('sakurapy supports python3.7+.')
 
 
 def memoize(method):
@@ -128,18 +137,32 @@ class App(Service):
 
     def _build_template_response(self, status):
         body = http_status_code_message(status)
-        headers = HttpHeader(content_type="text/plain", content_rength=len(body))
+        headers = HttpHeader(content_type="text/plain", content_rength=str(len(body)))
         return Response(headers, status, body)
 
     @property  # type: ignore
     @memoize
     def not_found_response(self):
-        return _build_template_response(HTTPStatus.NOT_FOUND)
+        return self._build_template_response(HTTPStatus.NOT_FOUND)
 
     @property  # type: ignore
     @memoize
     def method_not_allowed_response(self):
-        return _build_template_response(HTTPStatus.NOT_FOUND)
+        return self._build_template_response(HTTPStatus.METHOD_NOT_ALLOWED)
+
+    def _build_ok_response(self, environ, request_body, resource, path_params):
+        response = resource.handler(
+            Request(environ, resource.method, request_body),
+            **path_params,
+        )
+        content_type = 'text/plain'
+        if isinstance(response, dict):
+            response = json.dumps(response)
+            content_type = "application/json"
+        return Response(HttpHeader(
+            content_type=content_type,
+            content_length=str(len(response)),
+        ), HTTPStatus.OK, response)
 
     def __call__(self, environ, start_response):
         path: str = environ["PATH_INFO"]
@@ -148,30 +171,16 @@ class App(Service):
         matched_path = self._find_matched_path(path)
         content_type = "text/plain"
 
-        # FIXME
         if not matched_path:
-            status = HTTPStatus.NOT_FOUND
-            response = http_status_code_message(status)
+            response = self.not_found_response
         else:
             resource = self.resource_path_map[matched_path["name"]]
             if not resource.is_allowed_method(method):
-                status = HTTPStatus.METHOD_NOT_ALLOWED
-                response = http_status_code_message(status)
+                response = self.method_not_allowed_response
             else:
-                response = resource.handler(
-                    Request(environ, method, request_body),
-                    **matched_path["matched_object"].groupdict(),
-                )
-                if isinstance(response, dict):
-                    response = json.dumps(response)
-                    content_type = "application/json"
-                status = HTTPStatus.OK
-        response_headers = [
-            ("Content-Type", content_type),
-            ("Content-Length", str(len(response))),
-        ]
-        start_response(status, response_headers)
-        return [response.encode()]
+                response = self._build_ok_response(environ, request_body, resource, matched_path["matched_object"].groupdict())
+        start_response(response.status, response.headers)
+        return [response.body.encode()]
 
 
 class Server:
