@@ -1,21 +1,29 @@
+bin=v/bin
+py=${bin}/python
+pip=${bin}/pip
+mypy=${bin}/mypy
+black=${bin}/black
 
 .PHONY:
 
 init:
 	python3 -m venv v
-	v/bin/pip install -U pip
-	v/bin/pip install -r requirements-dev.txt
+	${pip} install -U pip
+	${pip} install -r requirements-dev.txt
 
-test:
-	v/bin/python -m unittest tests
+t:
+	${py} -m unittest tests
+
+t-app:
+	${py} -m unittest tests.test_app${T}
 
 example:
-	v/bin/python example.py
+	${py} example.py
 
 mypy:
-	v/bin/mypy sakura.py
+	${mypy} sakura.py
 
 lint:
-	v/bin/black sakura.py
+	${black} sakura.py
 
 check: lint mypy

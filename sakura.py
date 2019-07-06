@@ -29,27 +29,26 @@ class Service:
         return self
 
 
-path_pattern = re.compile(r'(/[^/]+)')
-
-
 class App(Service):
     def __init__(self):
         super().__init__()
 
-    def resolve_path(self, raw):
-        def loop(resource_map, head, tail, acc):
-            x = resource_map.get(head)
-            if not x:
-                return
-            if not tail:
-                return x
-            [h, *t] = tail
-            if isinstance(x, scope):
-                return loop(x.resource_map, h, t, None)
-            return loop(resource_map, h, t, x)
-
-        [head, *tail] = [x for x in path_pattern.split(raw) if x]
-        return loop(self.resource_map, head, tail, None)
+    @property
+    def resource_path_map(self):
+        if not hasattr(self, '_resource_path_map'):
+            def loop(path, value, tail, acc):
+                if isinstance(value, scope):
+                    [(p, v), *t] = value.resource_map.items()
+                    loop(f'{path}{p}', v, t, acc)
+                else:
+                    acc[path] = value
+                if not tail:
+                    return acc
+                [(p, v), *t] = tail
+                return loop(p, v, t, acc)
+            [(path, value), *tail] = self.resource_map.items()
+            self._resource_path_map = loop(path, value, tail, {})
+        return self._resource_path_map
 
     def __call__(self, environ, start_response):
         path: str = environ["PATH_INFO"]
@@ -63,7 +62,7 @@ class App(Service):
                 request_body_size = 0
             request_body = environ["wsgi.input"].read(request_body_size).decode()
 
-        resource = self.resolve_path(path)
+        resource = self.resource_path_map.get(path)
         content_type = "text/plain"
         if not resource:
             status = "404 NotFound"

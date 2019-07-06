@@ -85,29 +85,32 @@ class TestRequestHandlerCall(TestCase):
         self.assertEqual(result, [b'GET: scoped'])
 
 
-class TestResolvePath(TestCase):
+class TestResourcePathMap(TestCase):
     def setUp(self):
         self.solo_path = '/solo'
         self.solo_handler = lambda: 1
+        self.multiple_path = '/multi/index.html'
+        self.multiple_handler = lambda: 10
         self.scoped_parent_path = '/nested'
         self.scoped_child_path = '/scoped'
         self.scoped_handler = lambda: 2
 
         self.solo_service = resource(self.solo_path).get(self.solo_handler)
+        self.multiple_service = resource(self.multiple_path).get(self.multiple_handler)
         self.scoped_service = resource(self.scoped_child_path).get(self.scoped_handler)
-        self.app = App().service(self.solo_service).service(scope(self.scoped_parent_path).service(self.scoped_service))
+        self.app = App() \
+            .service(self.solo_service) \
+            .service(scope(self.scoped_parent_path).service(self.scoped_service)) \
+            .service(self.multiple_service)
 
-    def _callFUT(self, raw):
-        return self.app.resolve_path(raw)
+    def _callFUT(self):
+        return self.app.resource_path_map
 
-    def test_solo(self):
-        result = self._callFUT(self.solo_path)
-        self.assertTrue(result is self.solo_service)
-
-    def test_nested(self):
-        result = self._callFUT(f'{self.scoped_parent_path}{self.scoped_child_path}')
-        self.assertTrue(result is self.scoped_service)
-
-    def test_not_exist(self):
-        result = self._callFUT(f'/not_exist')
-        self.assertIsNone(result)
+    def test_ok(self):
+        result = self._callFUT()
+        expected = {
+            self.solo_path: self.solo_service,
+            self.multiple_path: self.multiple_service,
+            f'{self.scoped_parent_path}{self.scoped_child_path}': self.scoped_service,
+        }
+        self.assertEqual(result, expected)
