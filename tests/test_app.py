@@ -11,6 +11,9 @@ start_response_mock = mock.Mock()
 class TestRequestHandlerCall(TestCase):
     """totally tests"""
     def setUp(self):
+        def root(request):
+            return 'GET: root'
+
         def get_handler(request):
             x = json.dumps(request.body) if request.body else 'no param'
             return f'GET: {x}'
@@ -35,6 +38,7 @@ class TestRequestHandlerCall(TestCase):
         scoped = scope('/nest1').service(resource('/scoped').get(scoped_handler))
 
         self.dummy_app = App() \
+            .service(resource('/').get(root)) \
             .service(resource('/get').get(get_handler)) \
             .service(resource('/post').post(post_handler)) \
             .service(decorated_handler) \
@@ -55,6 +59,10 @@ class TestRequestHandlerCall(TestCase):
             environ['wsgi.input'] = BytesIO(b)
             environ['CONTENT_LENGTH'] = len(b)
         return environ
+
+    def test_root(self):
+        result = self.call_app(self.build_environ('/', 'get'))
+        self.assertEqual(result, [b'GET: root'])
 
     def test_404(self):
         result = self.call_app(self.build_environ('/not_found', 'get'))

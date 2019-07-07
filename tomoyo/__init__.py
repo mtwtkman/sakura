@@ -18,7 +18,7 @@ class PythonVersionError(Exception):
 
 
 if sys.version_info[:2] < (3, 7):
-    raise PythonVersionError("sakurapy supports python3.7+.")
+    raise PythonVersionError("tomoyo supports python3.7+.")
 
 
 class App(Service):
@@ -66,7 +66,7 @@ class App(Service):
 
     def _find_matched_path(self, path):
         filterd = [
-            x for x in [(p, re.match(p, path)) for p in self.resource_paths] if x[1]
+            x for x in [(p, re.match(fr'^{p}$', path)) for p in self.resource_paths] if x[1]
         ]
         if filterd:
             return {"name": filterd[0][0], "matched_object": filterd[0][1]}

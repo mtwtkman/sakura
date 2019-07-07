@@ -23,6 +23,10 @@ def handle_scoped_x(request):
     return 'scoped'
 
 
+def regex_path(request, id_):
+    return f'id is {id_}'
+
+
 app = App() \
     .service(resource('/').get(handle_get)) \
     .service(resource('/json').get(j)) \
@@ -30,5 +34,6 @@ app = App() \
     .service(decorated) \
     .service(
         scope('/scoped').service(resource('/x').get(handle_scoped_x))
-    )
+    ) \
+    .service(resource(r'/(?P<id_>\d+)').get(regex_path))
 Server(app=app).bind('0.0.0.0', 55301).run()
