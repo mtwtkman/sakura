@@ -14,6 +14,7 @@ class Response():
     def __init__(self, headers, status, body):
         self.headers = headers
         self.status = status
+        self.status_code_message = http_status_code_message(status)
         self.body = body
 
 

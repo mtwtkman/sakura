@@ -90,7 +90,7 @@ class App(Service):
                     Request(environ, resource.method, request_body), **matched_path["matched_object"].groupdict(),
                 )
                 response = build_ok_response(response_body)
-        start_response(response.status, response.headers)
+        start_response(str(response.status_code_message), response.headers.as_key_value_pairs())
         return [response.body.encode()]
 
 
