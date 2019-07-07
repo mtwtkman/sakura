@@ -1,12 +1,12 @@
 import re
 
+from .net import HttpMethod
+from .request import Request
 from .response import (
-    build_not_found_response,
     build_method_not_allowed_response,
+    build_not_found_response,
     build_ok_response,
 )
-from .request import Request
-from .net import HttpMethod
 from .service import Service
 
 

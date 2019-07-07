@@ -1,8 +1,9 @@
-from io import BytesIO
+from io import BytesIO, StringIO
 import json
 from unittest import TestCase, mock, skip
 
 from tomoyo.app import App, scope
+from tomoyo.middleware import Middleware
 from tomoyo.resource import resource, get
 
 
@@ -36,6 +37,9 @@ class TestRequestHandlerCall(TestCase):
         def regex_handler(request, id_):
             return f'GET: {id_}'
 
+        def stream_handler(request, word):
+            return StringIO(f'Stream: {word}')
+
         scoped = scope('/nest1').service(resource('/scoped').get(scoped_handler))
 
         self.dummy_app = App() \
@@ -44,7 +48,8 @@ class TestRequestHandlerCall(TestCase):
             .service(resource('/post').post(post_handler)) \
             .service(decorated_handler) \
             .service(scoped) \
-            .service(resource(r'/(?P<id_>\d+)').get(regex_handler))
+            .service(resource(r'/(?P<id_>\d+)').get(regex_handler)) \
+            .service(resource(f'/stream/(?P<word>\w+)').get(stream_handler))
 
     def call_app(self, environ):
         return self.dummy_app(environ, start_response_mock)
@@ -100,6 +105,12 @@ class TestRequestHandlerCall(TestCase):
     def test_regex(self):
         result = self.call_app(self.build_environ('/111', 'get'))
         self.assertEqual(result, [b'GET: 111'])
+
+    @skip('todo')
+    def test_stream(self):
+        word = 'foo'
+        result = self.call_app(self.build_environ(f'/stream/{word}', 'get'))
+        self.assertEqual(result, [StringIO(f'Stream: {word}').read().encode()])
 
 
 class TestResourcePathMap(TestCase):
@@ -158,3 +169,31 @@ class TestScope(TestCase):
         self.assertEqual(one.path, path)
         self.assertTrue(child_one.path in one.resource_map)
         self.assertTrue(one.resource_map[child_one.path] is child_one)
+
+
+class TestWrap(TestCase):
+    def setUp(self):
+        class First(Middleware):
+            def pre_request(self, request):
+                request.via_first = 'hi'
+                return request
+
+            def post_response(self, response):
+                response.via_first = 'hi'
+                return response
+
+        class Second(Middleware):
+            def pre_request(self, request):
+                request.via_second = 'yo'
+                return request
+
+            def post_response(self, response):
+                response.via_second = 'yo'
+                return response
+
+
+        self.app = App().wrap(Hi).service(resource('/').get(lambda req: 'done'))
+
+    @skip('todo')
+    def test_works_fine(self):
+        self.app

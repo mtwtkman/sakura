@@ -17,6 +17,7 @@ mypy:
 	@poetry run mypy tomoyo/*.py
 
 lint:
+	@poetry run isort tomoyo/*.py
 	@poetry run black tomoyo/*.py
 
 check: lint mypy

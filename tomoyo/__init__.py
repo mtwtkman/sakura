@@ -1,5 +1,9 @@
 import sys
 
+from .app import App, scope
+from .resource import delete, get, post, put, resource
+from .server import Server
+
 
 class PythonVersionError(Exception):
     pass
@@ -7,8 +11,3 @@ class PythonVersionError(Exception):
 
 if sys.version_info[:2] < (3, 7):
     raise PythonVersionError("tomoyo supports python3.7+.")
-
-
-from .resource import resource, get, post, put, delete
-from .server import Server
-from .app import App, scope
