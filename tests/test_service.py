@@ -1,6 +1,7 @@
 from unittest import TestCase
 
-from tomoyo import resource, Service, ReservedPathError
+from tomoyo import resource
+from tomoyo.service import Service, ReservedPathError
 
 
 class TestService(TestCase):

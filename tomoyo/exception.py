@@ -1,0 +1,2 @@
+class InvalidHttpMethod(Exception):
+    pass
