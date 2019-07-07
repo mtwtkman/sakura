@@ -3,7 +3,8 @@ This is a wsgi based toy webframework influenced by the interface of [actix-web]
 No dependencies, not for production.
 
 # Required
-python3.7+
+- python3.7+
+- poetry
 
 # Development
 ```sh

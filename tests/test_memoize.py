@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from sakura import memoize
+from tomoyo import memoize
 
 
 class TestMemoise(TestCase):

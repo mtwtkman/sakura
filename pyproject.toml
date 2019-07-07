@@ -1,0 +1,30 @@
+[tool.poetry]
+name ="tomoyo"
+version = "0.0.0"
+description = "The toy wsgi application framework"
+license = "WTFPL"
+authors = ["mtwtkman <yo@mtwtkman.dev>"]
+readme = "README.md"
+repository = "https://github.com/mtwtkman/kasu"
+homepage = "https://github.com/mtwtkman/kasu"
+keywords = ["webframework"]
+classifiers = [
+  "Programming Language :: Python :: 3.7",
+  "Topic :: Internet :: WWW/HTTP :: WSGI :: Application"
+]
+
+[tool.poetry.dependencies]
+python = "^3.7"
+
+[tool.poetry.dev-dependencies]
+black = { version = "*", allows-prereleases = true }
+isort = "^4.3"
+mypy = "^0.711.0"
+
+[tool.mypy]
+python_version = "3.7"
+ignore_missing_imports = "True"
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.memory.api"

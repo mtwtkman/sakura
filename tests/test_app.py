@@ -2,7 +2,7 @@ from io import BytesIO
 import json
 from unittest import TestCase, mock, skip
 
-from sakura import App, resource, scope, get
+from tomoyo import App, resource, scope, get
 
 
 start_response_mock = mock.Mock()

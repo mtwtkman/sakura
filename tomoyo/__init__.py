@@ -13,7 +13,7 @@ class PythonVersionError(Exception):
 
 
 if sys.version_info[:2] < (3, 7):
-    raise PythonVersionError('sakurapy supports python3.7+.')
+    raise PythonVersionError("sakurapy supports python3.7+.")
 
 
 def memoize(method):
@@ -152,17 +152,17 @@ class App(Service):
 
     def _build_ok_response(self, environ, request_body, resource, path_params):
         response = resource.handler(
-            Request(environ, resource.method, request_body),
-            **path_params,
+            Request(environ, resource.method, request_body), **path_params
         )
-        content_type = 'text/plain'
+        content_type = "text/plain"
         if isinstance(response, dict):
             response = json.dumps(response)
             content_type = "application/json"
-        return Response(HttpHeader(
-            content_type=content_type,
-            content_length=str(len(response)),
-        ), HTTPStatus.OK, response)
+        return Response(
+            HttpHeader(content_type=content_type, content_length=str(len(response))),
+            HTTPStatus.OK,
+            response,
+        )
 
     def __call__(self, environ, start_response):
         path: str = environ["PATH_INFO"]
@@ -178,7 +178,12 @@ class App(Service):
             if not resource.is_allowed_method(method):
                 response = self.method_not_allowed_response
             else:
-                response = self._build_ok_response(environ, request_body, resource, matched_path["matched_object"].groupdict())
+                response = self._build_ok_response(
+                    environ,
+                    request_body,
+                    resource,
+                    matched_path["matched_object"].groupdict(),
+                )
         start_response(response.status, response.headers)
         return [response.body.encode()]
 

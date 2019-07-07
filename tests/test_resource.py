@@ -1,11 +1,11 @@
 from unittest import TestCase
 
-from sakura import HttpMethod
+from tomoyo import HttpMethod
 
 
 class TestResourceNew(TestCase):
     def _callFUT(self):
-        from sakura import resource
+        from tomoyo import resource
         return resource.__new__(resource)
 
     def test_generate_methods_named_http_method(self):
@@ -18,7 +18,7 @@ class TestResourceNew(TestCase):
 
 class TestResourceTo(TestCase):
     def _callFUT(self, handler, method):
-        from sakura import resource
+        from tomoyo import resource
         return resource('')._to(handler, method)
 
     def test_return_self(self):

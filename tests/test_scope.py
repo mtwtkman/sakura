@@ -1,11 +1,11 @@
 from unittest import TestCase
 
-from sakura import resource
+from tomoyo import resource
 
 
 class TestScope(TestCase):
     def _makeOne(self, path):
-        from sakura import scope
+        from tomoyo import scope
         return scope(path)
 
     def test_simple(self):

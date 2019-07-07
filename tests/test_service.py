@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from sakura import resource, Service, ReservedPathError
+from tomoyo import resource, Service, ReservedPathError
 
 
 class TestService(TestCase):
