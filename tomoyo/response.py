@@ -5,13 +5,12 @@ from .net import HttpHeader
 from .request import Request
 
 
-
 def http_status_code_message(status):
     formatted = " ".join((s.capitalize() for s in status.name.split("_")))
     return f"{status.value} {formatted}"
 
 
-class Response():
+class Response:
     def __init__(self, headers, status, body):
         self.headers = headers
         self.status = status
