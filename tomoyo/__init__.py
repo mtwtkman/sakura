@@ -7,7 +7,6 @@ from wsgiref.simple_server import make_server
 from .resource import resource, get, post, put, delete
 from .response import Response, build_not_found_response, build_method_not_allowed_response, build_ok_response
 from .request import Request
-from .exception import InvalidHttpMethod
 from .net import HttpMethod
 from .service import Service
 from .server import Server
@@ -19,6 +18,10 @@ class PythonVersionError(Exception):
 
 if sys.version_info[:2] < (3, 7):
     raise PythonVersionError("tomoyo supports python3.7+.")
+
+
+class InvalidHttpMethod(Exception):
+    pass
 
 
 class App(Service):
