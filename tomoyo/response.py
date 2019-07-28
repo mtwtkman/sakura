@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 import json
 from http import HTTPStatus
 
@@ -5,31 +6,44 @@ from .net import HttpHeader
 from .request import Request
 
 
-def http_status_code_message(status):
-    formatted = " ".join((s.capitalize() for s in status.name.split("_")))
-    return f"{status.value} {formatted}"
+class ResponseBase(ABC):
+    @property
+    @abstractmethod
+    def status(self) -> HTTPStatus:
+        ...
 
+    @property
+    def status_code_message(self) -> str:
+        if not hasattr(self, '_status_code_message'):
+            formatted = " ".join((s.capitalize() for s in self.status.name.split("_")))
+            self._status_code_message = f"{self.status.value} {formatted}"
+        return self._status_code_message
 
-class Response:
-    def __init__(self, headers, status, body):
+    def __init__(self, headers: HttpHeader, body):
         self.headers = headers
-        self.status = status
-        self.status_code_message = http_status_code_message(status)
         self.body = body
 
 
-def _build_template_response(status):
-    body = http_status_code_message(status)
-    headers = HttpHeader(content_type="text/plain", content_rength=str(len(body)))
-    return Response(headers, status, body)
+class ErrorResponseBase(ResponseBase):
+    headers = HttpHeader(content_type="text/plain")
+
+    def __init__(self):
+        super().__init__(self.headers, self.status_code_message)
 
 
-def build_not_found_response():
-    return _build_template_response(HTTPStatus.NOT_FOUND)
+
+class NotFound(ErrorResponseBase):
+    status = HTTPStatus.NOT_FOUND
 
 
-def build_method_not_allowed_response():
-    return _build_template_response(HTTPStatus.METHOD_NOT_ALLOWED)
+class MethodNotAllowed(ErrorResponseBase):
+    status = HTTPStatus.METHOD_NOT_ALLOWED
+
+
+class OK(ResponseBase):
+    status = HTTPStatus.OK
+    def __init__(self, headers, body):
+        super().__init__(headers, body)
 
 
 def build_ok_response(response_body):
@@ -37,8 +51,8 @@ def build_ok_response(response_body):
     if isinstance(response_body, dict):
         response_body = json.dumps(response_body)
         content_type = "application/json"
-    return Response(
+    return OK(
         HttpHeader(content_type=content_type, content_length=str(len(response_body))),
-        HTTPStatus.OK,
         response_body,
     )
+

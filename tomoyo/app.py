@@ -3,8 +3,8 @@ import re
 from .net import HttpMethod
 from .request import Request
 from .response import (
-    build_method_not_allowed_response,
-    build_not_found_response,
+    NotFound,
+    MethodNotAllowed,
     build_ok_response,
 )
 from .service import Service
@@ -74,11 +74,11 @@ class App(Service):
         matched_path = self._find_matched_path(path)
 
         if not matched_path:
-            response = build_not_found_response()
+            response = NotFound()
         else:
             resource = self.resource_path_map[matched_path["name"]]
             if not resource.is_allowed_method(method):
-                response = build_method_not_allowed_response()
+                response = MethodNotAllowed()
             else:
                 response_body = resource.handler(
                     Request(environ, resource.method, request_body),

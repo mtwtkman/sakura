@@ -1,3 +1,5 @@
+from io import BytesIO
+
 from tomoyo import App, Server, resource, get, scope
 
 
